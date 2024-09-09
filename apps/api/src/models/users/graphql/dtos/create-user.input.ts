@@ -1,6 +1,10 @@
-import { Field, InputType, PickType } from '@nestjs/graphql'
+import { Field, InputType, ObjectType, PickType, registerEnumType } from '@nestjs/graphql'
 import { User } from '../entity/user.entity'
 import { AuthProviderType } from '@prisma/client'
+
+registerEnumType(AuthProviderType, {
+  name: 'AuthProviderType',
+})
 
 @InputType()
 export class RegisterWithProviderInput extends PickType(
@@ -18,4 +22,12 @@ export class RegisterWithCredentialsInput {
   email: string
   password: string
   image?: string
+}
+
+@InputType()
+export class LoginInput extends PickType(RegisterWithCredentialsInput, ['email', 'password']) { }
+
+@ObjectType()
+export class LoginOutput {
+  token: string
 }

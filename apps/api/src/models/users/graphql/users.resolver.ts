@@ -3,6 +3,8 @@ import { UsersService } from './users.service'
 import { User } from './entity/user.entity'
 import { FindManyUserArgs, FindUniqueUserArgs } from './dtos/find.args'
 import {
+  LoginInput,
+  LoginOutput,
   RegisterWithCredentialsInput,
   RegisterWithProviderInput,
 } from './dtos/create-user.input'
@@ -17,24 +19,31 @@ export class UsersResolver {
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   @Mutation(() => User)
-  createUser(
-    @Args('createUserInput') args: CreateUserInput,
-    @GetUser() user: GetUserType,
+  registerWithCredentials(
+    @Args('registerWithCredentialsInput') args: RegisterWithCredentialsInput,
   ) {
-    checkRowLevelPermission(user, args.uid)
-    return this.usersService.create(args)
+    return this.usersService.registerWithCredentials(args)
   }
 
   @Mutation(() => User)
-  createUser(
-    @Args('createUserInput') args: CreateUserInput,
-    @GetUser() user: GetUserType,
+  async registerWithProvider(
+    @Args('registerWithProviderInput') args: RegisterWithProviderInput,
   ) {
-    checkRowLevelPermission(user, args.uid)
-    return this.usersService.create(args)
+    return this.usersService.registerWithProvider(args)
+  }
+
+  @Mutation(() => LoginOutput)
+  async login(@Args('loginInput') args: LoginInput) {
+    return this.usersService.login(args)
+  }
+
+  @AllowAuthenticated()
+  @Query(() => User)
+  whoami(@GetUser() user: GetUserType) {
+    return this.usersService.findOne({ where: { uid: user.uid } })
   }
 
   @Query(() => [User], { name: 'users' })
