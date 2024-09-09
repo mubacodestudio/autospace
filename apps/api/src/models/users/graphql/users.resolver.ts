@@ -19,7 +19,7 @@ export class UsersResolver {
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   @Mutation(() => User)
   registerWithCredentials(

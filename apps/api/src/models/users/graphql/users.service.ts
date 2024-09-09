@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { FindManyUserArgs, FindUniqueUserArgs } from './dtos/find.args'
 import { PrismaService } from 'src/common/prisma/prisma.service'
 import { UpdateUserInput } from './dtos/update-user.input'
@@ -13,7 +17,10 @@ import { JwtService } from '@nestjs/jwt'
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async registerWithProvider({
     image,
@@ -85,18 +92,21 @@ export class UsersService {
     try {
       const user = await this.prisma.user.findFirst({
         where: {
-          Credentials: { email }
+          Credentials: { email },
         },
         include: {
-          Credentials: true
-        }
+          Credentials: true,
+        },
       })
 
       if (!user) {
         throw new UnauthorizedException('Invalid credentials')
       }
 
-      const isPasswordValid = bycrypt.compareSync(password, user.Credentials.passwordHash)
+      const isPasswordValid = bycrypt.compareSync(
+        password,
+        user.Credentials.passwordHash,
+      )
 
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid credentials')
@@ -106,11 +116,10 @@ export class UsersService {
         { uid: user.uid },
         {
           algorithm: 'HS256',
-        }
+        },
       )
 
       return { token: jwtToken }
-
     } catch (error) {
       throw new Error(error)
     }
