@@ -5,13 +5,14 @@ import {
 } from '@nestjs/common'
 import { FindManyUserArgs, FindUniqueUserArgs } from './dtos/find.args'
 import { PrismaService } from 'src/common/prisma/prisma.service'
-import { UpdateUserInput } from './dtos/update-user.input'
 import {
   LoginInput,
+  LoginOutput,
   RegisterWithCredentialsInput,
   RegisterWithProviderInput,
 } from './dtos/create-user.input'
-import * as bycrypt from 'bcryptjs'
+import { UpdateUserInput } from './dtos/update-user.input'
+import * as bcrypt from 'bcryptjs'
 import { v4 as uuid } from 'uuid'
 import { JwtService } from '@nestjs/jwt'
 
@@ -21,108 +22,95 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
-
-  async registerWithProvider({
-    image,
-    name,
-    uid,
-    type,
-  }: RegisterWithProviderInput) {
-    try {
-      return await this.prisma.user.create({
-        data: {
-          name,
-          uid,
-          image,
-          AuthProvider: {
-            create: { type },
+  registerWithProvider({ image, name, uid, type }: RegisterWithProviderInput) {
+    return this.prisma.user.create({
+      data: {
+        uid,
+        name,
+        image,
+        AuthProvider: {
+          create: {
+            type,
           },
         },
-      })
-    } catch (error) {
-      throw new Error(error)
-    }
+      },
+    })
   }
 
   async registerWithCredentials({
-    image,
-    name,
     email,
+    name,
     password,
+    image,
   }: RegisterWithCredentialsInput) {
-    try {
-      const existingUser = await this.prisma.credentials.findUnique({
-        where: {
-          email,
-        },
-      })
+    const existingUser = await this.prisma.credentials.findUnique({
+      where: { email },
+    })
 
-      if (existingUser) {
-        throw new BadRequestException('User already exists')
-      }
-
-      //Hash the Password
-      const salt = bycrypt.genSaltSync(10)
-      const passwordHash = bycrypt.hashSync(password, salt)
-
-      const uid = uuid()
-
-      return await this.prisma.user.create({
-        data: {
-          uid,
-          name,
-          image,
-          Credentials: {
-            create: { email, passwordHash },
-          },
-          AuthProvider: {
-            create: { type: 'CREDENTIALS' },
-          },
-        },
-        include: {
-          Credentials: true,
-        },
-      })
-    } catch (error) {
-      throw new Error(error)
+    if (existingUser) {
+      throw new BadRequestException('User already exists with this email.')
     }
+
+    // Hash the password
+    const salt = bcrypt.genSaltSync()
+    const passwordHash = bcrypt.hashSync(password, salt)
+
+    const uid = uuid()
+
+    return this.prisma.user.create({
+      data: {
+        uid,
+        name,
+        image,
+        Credentials: {
+          create: {
+            email,
+            passwordHash,
+          },
+        },
+        AuthProvider: {
+          create: {
+            type: 'CREDENTIALS',
+          },
+        },
+      },
+      include: {
+        Credentials: true,
+      },
+    })
   }
 
-  async login({ email, password }: LoginInput) {
-    try {
-      const user = await this.prisma.user.findFirst({
-        where: {
-          Credentials: { email },
-        },
-        include: {
-          Credentials: true,
-        },
-      })
+  async login({ email, password }: LoginInput): Promise<LoginOutput> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        Credentials: { email },
+      },
+      include: {
+        Credentials: true,
+      },
+    })
 
-      if (!user) {
-        throw new UnauthorizedException('Invalid credentials')
-      }
-
-      const isPasswordValid = bycrypt.compareSync(
-        password,
-        user.Credentials.passwordHash,
-      )
-
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials')
-      }
-
-      const jwtToken = this.jwtService.sign(
-        { uid: user.uid },
-        {
-          algorithm: 'HS256',
-        },
-      )
-
-      return { token: jwtToken }
-    } catch (error) {
-      throw new Error(error)
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password.')
     }
+
+    const isPasswordValid = bcrypt.compareSync(
+      password,
+      user.Credentials.passwordHash,
+    )
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password.')
+    }
+
+    const jwtToken = this.jwtService.sign(
+      { uid: user.uid },
+      {
+        algorithm: 'HS256',
+      },
+    )
+
+    return { token: jwtToken, user }
   }
 
   findAll(args: FindManyUserArgs) {

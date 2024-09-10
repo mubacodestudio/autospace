@@ -47,7 +47,7 @@ export class UsersController {
       ...(skip ? { skip: +skip } : null),
       ...(take ? { take: +take } : null),
       ...(sortBy ? { orderBy: { [sortBy]: order || 'asc' } } : null),
-      ...(search
+      ...(searchBy
         ? { where: { [searchBy]: { contains: search, mode: 'insensitive' } } }
         : null),
     })
@@ -78,8 +78,8 @@ export class UsersController {
 
   @ApiBearerAuth()
   @AllowAuthenticated()
-  @Delete(':id')
-  async remove(@Param('id') uid: string, @GetUser() user: GetUserType) {
+  @Delete(':uid')
+  async remove(@Param('uid') uid: string, @GetUser() user: GetUserType) {
     const userInfo = await this.prisma.user.findUnique({ where: { uid } })
     checkRowLevelPermission(user, userInfo.uid)
     return this.prisma.user.delete({ where: { uid } })
